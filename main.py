@@ -1,7 +1,7 @@
 from datetime import datetime
 from datetime import datetime, timedelta
 
-from fetcher import fetch_huggingface_papers, fetch_techcrunch_rss
+from fetcher import fetch_huggingface_papers, fetch_techcrunch_rss, fetch_github_trending
 
 yesterday = datetime.now() - timedelta(days=1)
 today = yesterday.strftime("%Y-%m-%d")
@@ -31,6 +31,9 @@ def main():
     # random_quote = random.choice(FAMOUS_QUOTES)
     print(huggingface_papers)
 
+    github_trending = fetch_github_trending()
+    print(github_trending)
+    
 
     # subject = "Tech Trending"
     # body = f"Today, we have collected {total} articles.\n\n" 

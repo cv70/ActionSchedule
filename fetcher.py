@@ -199,3 +199,68 @@ def fetch_huggingface_papers():
         print(f"程序执行出错: {e}")
         return []
 
+
+def fetch_github_trending():
+    url = "https://github.com/trending?since=daily"
+    headers = {'User-Agent': 'Mozilla/5.0'}
+    
+    try:
+        response = requests.get(url, timeout=20, headers=headers)
+        response.raise_for_status()
+        
+        soup = BeautifulSoup(response.content, 'html.parser')
+        trending_items = []
+        
+        # 查找所有趋势项目卡片
+        # GitHub Trending 页面的项目在 article 标签中，class 为 'Box-row'
+        articles = soup.select('article.Box-row')
+        
+        for article in articles:
+            try:
+                # 提取项目标题（owner/repo）
+                title_element = article.select_one('h2.h3.lh-condensed a')
+                if not title_element:
+                    continue
+                full_title = title_element.get_text(strip=True)
+                link = "https://github.com" + title_element['href']
+                
+                # 提取项目描述
+                description_element = article.select_one('p.col-9.color-text-secondary.my-1.pr-4')
+                description = description_element.get_text(strip=True) if description_element else ""
+                
+                # 提取编程语言
+                language_element = article.select_one('span[itemprop="programmingLanguage"]')
+                language = language_element.get_text(strip=True) if language_element else ""
+                
+                # 提取星标数
+                stars_element = article.select_one('a[href$="/stargazers"]')
+                stars = stars_element.get_text(strip=True) if stars_element else "0"
+                
+                # 提取分叉数
+                forks_element = article.select_one('a[href$="/forks"]')
+                forks = forks_element.get_text(strip=True) if forks_element else "0"
+                
+                # 创建项目信息字典
+                item = {
+                    'source': 'GitHub Trending',
+                    'title': full_title,
+                    'link': link,
+                    'title_cn': translate(full_title),
+                    'summary': translate(description),
+                    'meta': f'language: {language}, stars: {stars}, forks: {forks}',
+                }
+                
+                trending_items.append(item)
+                
+            except Exception as e:
+                print(f"解析 GitHub 趋势项目时出错: {e}")
+                continue
+        
+        return trending_items
+        
+    except requests.exceptions.RequestException as e:
+        print(f"获取 GitHub Trending 数据失败: {e}")
+        return []
+    except Exception as e:
+        print(f"处理 GitHub Trending 数据时出错: {e}")
+        return []
