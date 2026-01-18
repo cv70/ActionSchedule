@@ -1,4 +1,6 @@
+import html
 import json
+import feedparser
 import requests
 from datetime import datetime
 from pathlib import Path
@@ -15,31 +17,17 @@ from google import genai
 from google.genai import types
 from datetime import datetime, timedelta
 
-# Simple Hacker News HTTP API helpers to avoid depending on external hn_sdk package
-def get_top_stories():
-    """Return list of top story IDs from Hacker News API"""
-    resp = requests.get("https://hacker-news.firebaseio.com/v0/topstories.json", timeout=20)
-    resp.raise_for_status()
-    return resp.json()
-
-
-def get_item_by_id(item_id):
-    """Return item JSON for a given Hacker News item id"""
-    resp = requests.get(f"https://hacker-news.firebaseio.com/v0/item/{item_id}.json", timeout=20)
-    resp.raise_for_status()
-    return resp.json()
-
 yesterday = datetime.now() - timedelta(days=1)
 today = yesterday.strftime("%Y-%m-%d")
 
-article_chars = 3000
+article_max_chars = 1500
 
 # Gemini settings
 GEMINI_API_KEY = os.getenv('GEMINI_API_KEY')
 model = None #genai.Client(api_key=GEMINI_API_KEY)
 
 # Email settings
-SMTP_SERVER = "smtp.163.com"
+SMTP_SERVER = "smtp.qq.com"
 SMTP_USERNAME = os.getenv('SMTP_USERNAME')
 SMTP_PASSWORD = os.getenv('SMTP_PASSWORD')
 EMAIL_RECIPIENT = os.getenv('EMAIL_RECIPIENT')
@@ -56,9 +44,10 @@ FAMOUS_QUOTES = [
 
 def trim_article_content(content):
     content = content.strip()
-    return content[:article_chars] + '...' if len(content) > article_chars else content
+    return content[:article_max_chars] + '...' if len(content) > article_max_chars else content
 
-def get_arxiv_papers(query, delay=3):
+
+def fetch_arxiv_papers(query, delay=3):
     client = arxiv.Client()
     search = arxiv.Search(
         query=query,
@@ -80,10 +69,22 @@ def get_arxiv_papers(query, delay=3):
     return papers
 
 
-def get_hacknews_storys():
+def fetch_hacknews_storys():
+    def get_top_stories():
+        """Return list of top story IDs from Hacker News API"""
+        resp = requests.get("https://hacker-news.firebaseio.com/v0/topstories.json", timeout=20)
+        resp.raise_for_status()
+        return resp.json()
+
+    def get_item_by_id(item_id):
+        """Return item JSON for a given Hacker News item id"""
+        resp = requests.get(f"https://hacker-news.firebaseio.com/v0/item/{item_id}.json", timeout=20)
+        resp.raise_for_status()
+        return resp.json()
+
     def extract_main_content(url):
         try:
-            response = requests.get(url, timeout=30, headers={'User-Agent': 'Mozilla/5.0'})
+            response = requests.get(url, timeout=20, headers={'User-Agent': 'Mozilla/5.0'})
             soup = BeautifulSoup(response.content, 'html.parser')
             
             # 移除无关元素
@@ -105,8 +106,6 @@ def get_hacknews_storys():
         print(f"获取热门故事ID失败: {e}")
         return []
 
-    print(f"热门故事ID: {top_story_ids[:min(len(top_story_ids), 10)]}")
-
     # 2. 根据ID获取故事的详细信息
     storys = []
     for story_id in top_story_ids:
@@ -117,10 +116,11 @@ def get_hacknews_storys():
             link = story_detail.get('url', '')
             story_content = extract_main_content(link) if link else ''
             storys.append({
+                'source': 'HackNews',
                 "title": story_detail.get('title', ''),
-                "pdf_link": link,
-                "translated_title": translate(story_detail.get('title', '')), 
-                "translated_summary": translate(story_content)
+                "link": link,
+                "title_cn": translate(story_detail.get('title', '')),
+                "summary": translate(story_content)
             })
         except Exception as e:
             print(f"处理 story_id {story_id} 出错: {e}")
@@ -129,15 +129,34 @@ def get_hacknews_storys():
     return storys
 
 
-def get_huggingface_papers(num_papers=5):
+def fetch_techcrunch_rss():
+    rss_url = "https://techcrunch.com/feed/"
+    feed = feedparser.parse(rss_url)
+    
+    articles = []
+    print(len(feed.entries))
+    for entry in feed.entries:        
+        article = {
+            'source': 'TechCrunch',
+            'title': entry.title,
+            'link': entry.link,
+            'title_cn': translate(entry.title),
+            'summary': translate(html.unescape(entry.summary)),
+        }
+        articles.append(article)
+        # time.sleep(1)  # 礼貌延迟
+    
+    return articles
+
+
+def fetch_huggingface_papers():
     # 目标URL
     url = "https://huggingface.co/papers"
     
     # 设置请求头，模拟浏览器访问
-    response = requests.get(url, timeout=30, headers={'User-Agent': 'Mozilla/5.0'})
     try:
         # 发送HTTP请求
-        response = requests.get(url, timeout=30, headers={'User-Agent': 'Mozilla/5.0'})
+        response = requests.get(url, timeout=20, headers={'User-Agent': 'Mozilla/5.0'})
         response.raise_for_status()  # 检查请求是否成功
         
         print(response.content)
@@ -151,25 +170,23 @@ def get_huggingface_papers(num_papers=5):
         # 查找包含论文信息的元素
         # 根据页面结构，论文条目通常在<article>标签或特定class的<div>中
         # 这里使用更通用的选择器，可能需要根据实际页面结构调整
-        paper_elements = soup.find_all('article', limit=num_papers)
+        paper_elements = soup.find_all('article')
         
         # 如果找不到<article>标签，尝试其他选择器
         if not paper_elements:
-            paper_elements = soup.select('[data-target="paper-card"]', limit=num_papers)
+            paper_elements = soup.select('[data-target="paper-card"]')
         
         # 如果还找不到，尝试查找具有论文特征的div
         if not paper_elements:
-            paper_elements = soup.select('div[class*="paper"], div[class*="card"]', limit=num_papers)
+            paper_elements = soup.select('div[class*="paper"], div[class*="card"]')
         
         # 提取每个论文的信息
-        for i, element in enumerate(paper_elements[:num_papers]):
+        for i, element in enumerate(paper_elements):
             try:
                 # 提取论文标题
-                title_element = element.find(['h3', 'h4', 'a'], class_=lambda x: x and any(keyword in str(x).lower() for keyword in ['title', 'heading', 'name']))
-                if not title_element:
-                    title_element = element.find(['h3', 'h4', 'a'])
+                title_element = element.find(['h1'])
                 
-                title = title_element.get_text(strip=True) if title_element else "标题未找到"
+                title = title_element.get_text(strip=True) if title_element else ""
                 
                 # 提取论文链接
                 link_element = element.find('a', href=True)
@@ -182,7 +199,7 @@ def get_huggingface_papers(num_papers=5):
                     link = ""
                 
                 # 提取论文摘要/内容
-                content_element = element.find(['p', 'div'], class_=lambda x: x and any(keyword in str(x).lower() for keyword in ['text-blue']))
+                content_element = element.find(['p'], class_=lambda x: x and any(keyword in str(x).lower() for keyword in ['text-blue']))
                 if not content_element:
                     # 尝试查找第一个段落
                     content_element = element.find('p')
@@ -191,16 +208,16 @@ def get_huggingface_papers(num_papers=5):
                 
                 # 创建论文信息字典
                 paper_info = {
-                    'id': i + 1,
+                    'source': 'HuggingFace',
                     'title': title,
-                    'content': trim_article_content(content),
                     'link': link,
+                    'title_cn': translate(title),
+                    'summary': translate(content),
                 }
                 
                 papers.append(paper_info)
                 
-                # 添加延迟以避免请求过快
-                time.sleep(1)
+                # time.sleep(1)  # 礼貌延迟
                 
             except Exception as e:
                 print(f"  处理第 {i+1} 个论文元素时出错: {str(e)}")
@@ -253,10 +270,10 @@ def main():
 
     # arxiv_papers = get_arxiv_papers(query)
 
-    hacknews_storys = get_hacknews_storys()
-    print(hacknews_storys)
+    # hacknews_storys = fetch_hacknews_storys()
+    # print(hacknews_storys)
 
-    huggingface_papers = get_huggingface_papers()
+    huggingface_papers = fetch_huggingface_papers()
 
     # total = len(arxiv_papers) + len(hacknews_storys) + len(huggingface_papers)
     # random_quote = random.choice(FAMOUS_QUOTES)
