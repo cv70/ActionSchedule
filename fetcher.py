@@ -1,4 +1,5 @@
 import html
+import time
 import feedparser
 import requests
 import arxiv
@@ -12,6 +13,16 @@ article_max_chars = 1500
 def trim_article_content(content):
     content = content.strip()
     return content[:article_max_chars] + '...' if len(content) > article_max_chars else content
+
+
+def send_request(req_url):
+    try:
+        resp = requests.get(req_url, timeout=20)
+        resp.raise_for_status()
+        return resp
+    except Exception as e:
+        print(f'请求{req_url}失败')
+    return None
 
 
 def fetch_arxiv_papers(query, delay=3):
@@ -38,20 +49,14 @@ def fetch_arxiv_papers(query, delay=3):
 
 def fetch_hacknews_storys():
     def get_top_stories():
-        """Return list of top story IDs from Hacker News API"""
-        resp = requests.get("https://hacker-news.firebaseio.com/v0/topstories.json", timeout=20)
-        resp.raise_for_status()
-        return resp.json()
+        return send_request("https://hacker-news.firebaseio.com/v0/topstories.json").json()
 
     def get_item_by_id(item_id):
-        """Return item JSON for a given Hacker News item id"""
-        resp = requests.get(f"https://hacker-news.firebaseio.com/v0/item/{item_id}.json", timeout=20)
-        resp.raise_for_status()
-        return resp.json()
+        return send_request(f"https://hacker-news.firebaseio.com/v0/item/{item_id}.json").json()
 
     def extract_main_content(url):
         try:
-            response = requests.get(url, timeout=20, headers={'User-Agent': 'Mozilla/5.0'})
+            response = send_request(url)
             soup = BeautifulSoup(response.content, 'html.parser')
             
             # 移除无关元素
@@ -117,17 +122,16 @@ def fetch_techcrunch_rss():
 
 
 def fetch_huggingface_papers():
+    def get_paper(paper_url):
+        return send_request(paper_url)
+
     # 目标URL
     url = "https://huggingface.co/papers"
     
-    # 设置请求头，模拟浏览器访问
     try:
         # 发送HTTP请求
-        response = requests.get(url, timeout=20, headers={'User-Agent': 'Mozilla/5.0'})
-        response.raise_for_status()  # 检查请求是否成功
+        response = send_request(url)
         
-        print(response.content)
-
         # 使用BeautifulSoup解析HTML
         soup = BeautifulSoup(response.content, 'html.parser')
         
@@ -151,7 +155,7 @@ def fetch_huggingface_papers():
         for i, element in enumerate(paper_elements):
             try:
                 # 提取论文标题
-                title_element = element.find(['h1'])
+                title_element = element.find(['h3 a'])
                 
                 title = title_element.get_text(strip=True) if title_element else ""
                 
@@ -166,7 +170,9 @@ def fetch_huggingface_papers():
                     link = ""
                 
                 # 提取论文摘要/内容
-                content_element = element.find(['p'], class_=lambda x: x and any(keyword in str(x).lower() for keyword in ['text-blue']))
+                paper_resp = get_paper(link)
+                paper_soup = BeautifulSoup(paper_resp.content, 'html.parser')
+                content_element = paper_soup.find(['p'], class_=lambda x: x and any(keyword in str(x).lower() for keyword in ['text-blue']))
                 if not content_element:
                     # 尝试查找第一个段落
                     content_element = element.find('p')
@@ -184,7 +190,7 @@ def fetch_huggingface_papers():
                 
                 papers.append(paper_info)
                 
-                # time.sleep(1)  # 礼貌延迟
+                time.sleep(1)  # 礼貌延迟
                 
             except Exception as e:
                 print(f"  处理第 {i+1} 个论文元素时出错: {str(e)}")
