@@ -11,8 +11,8 @@ from email.mime.multipart import MIMEMultipart
 # Replaced dependency on hn_sdk with direct Hacker News API calls
 from bs4 import BeautifulSoup
 import random
-import google.generativeai as genai
-
+from google import genai
+from google.genai import types
 from datetime import datetime, timedelta
 
 # Simple Hacker News HTTP API helpers to avoid depending on external hn_sdk package
@@ -32,10 +32,11 @@ def get_item_by_id(item_id):
 yesterday = datetime.now() - timedelta(days=1)
 today = yesterday.strftime("%Y-%m-%d")
 
+article_chars = 3000
+
 # Gemini settings
 GEMINI_API_KEY = os.getenv('GEMINI_API_KEY')
-genai.configure(api_key=GEMINI_API_KEY)
-model = genai.GenerativeModel('gemini-3-flash')
+model = None #genai.Client(api_key=GEMINI_API_KEY)
 
 # Email settings
 SMTP_SERVER = "smtp.163.com"
@@ -52,6 +53,10 @@ FAMOUS_QUOTES = [
     "Do not wait to strike till the iron is hot; but make it hot by striking. - William Butler Yeats"
 ]
 
+
+def trim_article_content(content):
+    content = content.strip()
+    return content[:article_chars] + '...' if len(content) > article_chars else content
 
 def get_arxiv_papers(query, delay=3):
     client = arxiv.Client()
@@ -89,9 +94,7 @@ def get_hacknews_storys():
             main_content = soup.find('article') or soup.find('main') or soup.find('body')
             text = main_content.get_text(separator='\n', strip=True) if main_content else soup.get_text()
             
-            # 截取前5000字符作为摘要
-            chars = 5000
-            return text[:chars] + '...' if len(text) > chars else text
+            return trim_article_content(text)
         except Exception as e:
             return f"无法提取内容: {e}"
 
@@ -176,26 +179,25 @@ def get_huggingface_papers(num_papers=5):
                     if link.startswith('/'): 
                         link = f"https://huggingface.co{link}"
                 else:
-                    link = "链接未找到"
+                    link = ""
                 
                 # 提取论文摘要/内容
-                content_element = element.find(['p', 'div'], class_=lambda x: x and any(keyword in str(x).lower() for keyword in ['abstract', 'summary', 'content', 'description']))
+                content_element = element.find(['p', 'div'], class_=lambda x: x and any(keyword in str(x).lower() for keyword in ['text-blue']))
                 if not content_element:
                     # 尝试查找第一个段落
                     content_element = element.find('p')
                 
-                content = content_element.get_text(strip=True) if content_element else "内容未找到"
+                content = content_element.get_text(strip=True) if content_element else ""
                 
                 # 创建论文信息字典
                 paper_info = {
                     'id': i + 1,
                     'title': title,
-                    'content': content[:500] + "..." if len(content) > 500 else content,  # 限制内容长度
+                    'content': trim_article_content(content),
                     'link': link,
                 }
                 
                 papers.append(paper_info)
-                print(f"  已提取论文 {i+1}: {title[:50]}...")
                 
                 # 添加延迟以避免请求过快
                 time.sleep(1)
@@ -247,8 +249,7 @@ def send_email(subject, body):
 
 
 def main():
-    print('今天又是活力满满的一天')
-    query = "cs.NE OR cs.MA OR cs.LG OR cs.CV OR cs.CL OR cs.AI"
+    # query = "cs.NE OR cs.MA OR cs.LG OR cs.CV OR cs.CL OR cs.AI"
 
     # arxiv_papers = get_arxiv_papers(query)
 
