@@ -106,7 +106,6 @@ def fetch_techcrunch_rss():
     feed = feedparser.parse(rss_url)
     
     articles = []
-    print(len(feed.entries))
     for entry in feed.entries:        
         article = {
             'source': 'TechCrunch',
@@ -155,7 +154,7 @@ def fetch_huggingface_papers():
         for i, element in enumerate(paper_elements):
             try:
                 # 提取论文标题
-                title_element = element.find(['h3 a'])
+                title_element = element.select_one('h3 a')
                 
                 title = title_element.get_text(strip=True) if title_element else ""
                 
