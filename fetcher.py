@@ -1,45 +1,12 @@
 import html
-import json
 import feedparser
 import requests
-from datetime import datetime
-from pathlib import Path
-import time
 import arxiv
-import os
-import smtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
-# Replaced dependency on hn_sdk with direct Hacker News API calls
 from bs4 import BeautifulSoup
-import random
-from google import genai
-from google.genai import types
-from datetime import datetime, timedelta
 
-yesterday = datetime.now() - timedelta(days=1)
-today = yesterday.strftime("%Y-%m-%d")
+from llm import translate
 
 article_max_chars = 1500
-
-# Gemini settings
-GEMINI_API_KEY = os.getenv('GEMINI_API_KEY')
-model = None #genai.Client(api_key=GEMINI_API_KEY)
-
-# Email settings
-SMTP_SERVER = "smtp.qq.com"
-SMTP_USERNAME = os.getenv('SMTP_USERNAME')
-SMTP_PASSWORD = os.getenv('SMTP_PASSWORD')
-EMAIL_RECIPIENT = os.getenv('EMAIL_RECIPIENT')
-
-# List of famous quotes
-FAMOUS_QUOTES = [
-    "The only way to do great work is to love what you do. - Steve Jobs",
-    "Believe you can and you're halfway there. - Theodore Roosevelt",
-    "Success is not final, failure is not fatal: It is the courage to continue that counts. - Winston S. Churchill",
-    "The best way to predict the future is to invent it. - Alan Kay",
-    "Do not wait to strike till the iron is hot; but make it hot by striking. - William Butler Yeats"
-]
 
 
 def trim_article_content(content):
@@ -223,7 +190,6 @@ def fetch_huggingface_papers():
                 print(f"  处理第 {i+1} 个论文元素时出错: {str(e)}")
                 continue
         
-        
         return papers
         
     except requests.exceptions.RequestException as e:
@@ -233,59 +199,3 @@ def fetch_huggingface_papers():
         print(f"程序执行出错: {e}")
         return []
 
-
-def translate(text):
-    if text:
-        text = text.strip()
-    if not text:
-        return ''
-    return text
-    try:
-        system_instruction = "你是一位专业、严谨的学术翻译助手，翻译时严格保留专业术语和原文风格。"
-        prompt = f"{system_instruction}\n请将以下学术内容准确翻译为中文：\n{text}"
-        response = model.generate_content(prompt, genai.GenerationConfig(temperature=0.3))
-        return response.text
-    except Exception as e:
-        print(f"翻译失败: {str(e)}")
-        return text + " [翻译失败]"  # 返回原文前100字符+错误标记
-
-
-def send_email(subject, body):
-    msg = MIMEMultipart()
-    msg['From'] = SMTP_USERNAME
-    msg['To'] = EMAIL_RECIPIENT
-    msg['Subject'] = subject
-    msg.attach(MIMEText(body, 'plain'))
-
-    server = smtplib.SMTP(SMTP_SERVER)
-    server.starttls()
-    server.login(SMTP_USERNAME, SMTP_PASSWORD)
-    text = msg.as_string()
-    server.sendmail(SMTP_USERNAME, EMAIL_RECIPIENT, text)
-    server.quit()
-
-
-def main():
-    # query = "cs.NE OR cs.MA OR cs.LG OR cs.CV OR cs.CL OR cs.AI"
-
-    # arxiv_papers = get_arxiv_papers(query)
-
-    # hacknews_storys = fetch_hacknews_storys()
-    # print(hacknews_storys)
-
-    huggingface_papers = fetch_huggingface_papers()
-
-    # total = len(arxiv_papers) + len(hacknews_storys) + len(huggingface_papers)
-    # random_quote = random.choice(FAMOUS_QUOTES)
-    print(huggingface_papers)
-
-    # subject = "Articles Update"
-    # body = f"Today, we have collected {total} articles.\n\n" 
-    #        f"New papers have been updated. Check the website for details.\n\n" 
-    #        f"{random_quote}"
-
-    # Send email notification
-    # send_email(subject, body)
-
-if __name__ == "__main__":
-    main()

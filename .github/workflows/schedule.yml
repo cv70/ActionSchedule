@@ -28,7 +28,7 @@ jobs:
         SMTP_USERNAME: ${{ secrets.SMTP_USERNAME }}
         SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
         EMAIL_RECIPIENT: ${{ secrets.EMAIL_RECIPIENT }}
-      run: python upload_articles.py
+      run: python main.py
 
     # - name: Commit and push changes
     #   run: |
