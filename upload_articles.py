@@ -8,12 +8,26 @@ import os
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-from hn_sdk.client.v0.client import get_top_stories, get_item_by_id
+# Replaced dependency on hn_sdk with direct Hacker News API calls
 from bs4 import BeautifulSoup
 import random
 import google.generativeai as genai
 
 from datetime import datetime, timedelta
+
+# Simple Hacker News HTTP API helpers to avoid depending on external hn_sdk package
+def get_top_stories():
+    """Return list of top story IDs from Hacker News API"""
+    resp = requests.get("https://hacker-news.firebaseio.com/v0/topstories.json", timeout=20)
+    resp.raise_for_status()
+    return resp.json()
+
+
+def get_item_by_id(item_id):
+    """Return item JSON for a given Hacker News item id"""
+    resp = requests.get(f"https://hacker-news.firebaseio.com/v0/item/{item_id}.json", timeout=20)
+    resp.raise_for_status()
+    return resp.json()
 
 yesterday = datetime.now() - timedelta(days=1)
 today = yesterday.strftime("%Y-%m-%d")
@@ -82,21 +96,34 @@ def get_hacknews_storys():
             return f"无法提取内容: {e}"
 
     # 1. 获取首页热门故事的ID列表
-    top_story_ids = get_top_stories()  # 返回ID列表
+    try:
+        top_story_ids = get_top_stories()  # 返回ID列表
+    except Exception as e:
+        print(f"获取热门故事ID失败: {e}")
+        return []
+
     print(f"热门故事ID: {top_story_ids[:min(len(top_story_ids), 10)]}")
 
     # 2. 根据ID获取故事的详细信息
     storys = []
     for story_id in top_story_ids:
-        story_detail = get_item_by_id(story_id)
-        link = story_detail.get('url', '')
-        story_content = extract_main_content(link) if link else ''
-        storys.append({
-            "title": story_detail['title'],
-            "pdf_link": link,
-            "translated_title": translate(story_detail['title']),
-            "translated_summary": translate(story_content)
-        })
+        try:
+            story_detail = get_item_by_id(story_id)
+            if not story_detail:
+                continue
+            link = story_detail.get('url', '')
+            story_content = extract_main_content(link) if link else ''
+            storys.append({
+                "title": story_detail.get('title', ''),
+                "pdf_link": link,
+                "translated_title": translate(story_detail.get('title', '')), 
+                "translated_summary": translate(story_content)
+            })
+        except Exception as e:
+            print(f"处理 story_id {story_id} 出错: {e}")
+            continue
+
+    return storys
 
 
 def get_huggingface_papers(num_papers=5):
@@ -146,7 +173,7 @@ def get_huggingface_papers(num_papers=5):
                 if link_element:
                     link = link_element['href']
                     # 确保链接完整
-                    if link.startswith('/'):
+                    if link.startswith('/'): 
                         link = f"https://huggingface.co{link}"
                 else:
                     link = "链接未找到"
@@ -235,8 +262,8 @@ def main():
     print(huggingface_papers)
 
     # subject = "Articles Update"
-    # body = f"Today, we have collected {total} articles.\n\n" \
-    #        f"New papers have been updated. Check the website for details.\n\n" \
+    # body = f"Today, we have collected {total} articles.\n\n" 
+    #        f"New papers have been updated. Check the website for details.\n\n" 
     #        f"{random_quote}"
 
     # Send email notification
