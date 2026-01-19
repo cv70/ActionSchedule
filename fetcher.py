@@ -7,7 +7,7 @@ from bs4 import BeautifulSoup
 
 from llm import translate
 
-article_max_chars = 1500
+article_max_chars = 3000
 
 
 def trim_article_content(content):
@@ -25,17 +25,19 @@ def send_request(req_url):
     return None
 
 
-def fetch_arxiv_papers(query, delay=3):
+def fetch_arxiv_papers(query, limit=5):
     client = arxiv.Client()
     search = arxiv.Search(
         query=query,
-        max_results=10,  # Increase max_results to get more papers
+        max_results=limit,  # Increase max_results to get more papers
         sort_by=arxiv.SortCriterion.SubmittedDate,
         sort_order=arxiv.SortOrder.Descending
     )
     results = client.results(search)
     papers = []
     
+    results = results[:min(len(results), limit)]
+
     # 在arxiv论文处理循环中添加翻译字段
     for result in results:
         papers.append({
@@ -47,7 +49,7 @@ def fetch_arxiv_papers(query, delay=3):
     return papers
 
 
-def fetch_hacknews_storys():
+def fetch_hacknews_storys(limit=5):
     def get_top_stories():
         return send_request("https://hacker-news.firebaseio.com/v0/topstories.json").json()
 
@@ -78,6 +80,8 @@ def fetch_hacknews_storys():
         print(f"获取热门故事ID失败: {e}")
         return []
 
+    top_story_ids = top_story_ids[:min(len(top_story_ids), limit)]
+
     # 2. 根据ID获取故事的详细信息
     storys = []
     for story_id in top_story_ids:
@@ -101,10 +105,11 @@ def fetch_hacknews_storys():
     return storys
 
 
-def fetch_techcrunch_rss():
+def fetch_techcrunch_rss(limit=5):
     rss_url = "https://techcrunch.com/feed/"
     feed = feedparser.parse(rss_url)
-    
+    feed.entries = feed.entries[:min(len(feed.entries), limit)]
+
     articles = []
     for entry in feed.entries:        
         article = {
@@ -120,7 +125,7 @@ def fetch_techcrunch_rss():
     return articles
 
 
-def fetch_huggingface_papers():
+def fetch_huggingface_papers(limit=5):
     def get_paper(paper_url):
         return send_request(paper_url)
 
@@ -149,6 +154,8 @@ def fetch_huggingface_papers():
         # 如果还找不到，尝试查找具有论文特征的div
         if not paper_elements:
             paper_elements = soup.select('div[class*="paper"], div[class*="card"]')
+        
+        paper_elements = paper_elements[:min(len(paper_elements), limit)]
         
         # 提取每个论文的信息
         for i, element in enumerate(paper_elements):
@@ -205,7 +212,7 @@ def fetch_huggingface_papers():
         return []
 
 
-def fetch_github_trending():
+def fetch_github_trending(limit=5):
     url = "https://github.com/trending?since=daily"
     headers = {'User-Agent': 'Mozilla/5.0'}
     
@@ -220,6 +227,8 @@ def fetch_github_trending():
         # GitHub Trending 页面的项目在 article 标签中，class 为 'Box-row'
         articles = soup.select('article.Box-row')
         
+        articles = articles[:min(len(articles), limit)]
+
         for article in articles:
             try:
                 # 提取项目标题（owner/repo）

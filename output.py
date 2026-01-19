@@ -35,7 +35,7 @@ def send_email(subject, body):
     server.quit()
 
 
-def build_html_content(articles):
+def build_html_content(articles, report):
     html_content = """
     <!DOCTYPE html>
     <html>
@@ -59,12 +59,14 @@ def build_html_content(articles):
     <body>
         <h2 style="color: #2c3e50; text-align: center;">📚 今日趋势洞察速递</h2>
         <p style="text-align: center; color: #7f8c8d;">筛选了 <strong>{count}</strong> 篇精选文章, {quote}</p>
+        <p style="text-align: center; color: #7f8c8d;">{report}</p>
     """
 
     # 替换文章数量占位符
     html_content = html_content.replace('{count}', str(len(articles)))
     random_quote = random.choice(FAMOUS_QUOTES)
     html_content = html_content.replace('{quote}', random_quote)
+    html_content = html_content.replace('{report}', report)
 
     for index, article in enumerate(articles):
         # 构建单篇文章的HTML块
