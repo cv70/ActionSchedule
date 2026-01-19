@@ -28,6 +28,9 @@ jobs:
         SMTP_USERNAME: ${{ secrets.SMTP_USERNAME }}
         SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
         EMAIL_RECIPIENT: ${{ secrets.EMAIL_RECIPIENT }}
+        GPT_API_KEY: ${{ secrets.GPT_API_KEY }}
+        GPT_API_URL: ${{ secrets.GPT_API_URL }}
+        GPT_MODEL: ${{ secrets.GPT_MODEL }}
       run: python main.py
 
     # - name: Commit and push changes
