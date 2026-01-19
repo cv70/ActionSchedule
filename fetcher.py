@@ -33,11 +33,11 @@ class Fetcher():
         client = arxiv.Client()
         search = arxiv.Search(
             query=query,
-            max_results=limit,  # Increase max_results to get more papers
+            max_results=limit,
             sort_by=arxiv.SortCriterion.SubmittedDate,
             sort_order=arxiv.SortOrder.Descending
         )
-        results = client.results(search)
+        results = list(client.results(search))
         papers = []
         
         results = results[:min(len(results), limit)]
