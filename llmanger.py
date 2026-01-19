@@ -1,4 +1,5 @@
 import os
+import time
 
 from google import genai
 from google.genai import types
@@ -14,7 +15,6 @@ class LLManager():
         self.GPT_API_KEY = os.getenv('GPT_API_KEY')
         self.GPT_API_URL = os.getenv('GPT_API_URL')
         self.GPT_MODEL = os.getenv('GPT_MODEL')
-        print(self.GPT_MODEL)
         self.gpt_model = OpenAI(
             api_key=self.GPT_API_KEY,
             base_url=self.GPT_API_URL
@@ -34,8 +34,9 @@ class LLManager():
                     {"role": "system", "content": system_instruction},
                     {"role": "user", "content": f"将以下学术内容准确翻译为中文：{text}"}
                 ],
-                timeout=20  # 添加超时设置
+                timeout=30  # 添加超时设置
             )
+            time.sleep(1) # 礼貌延迟
             if not response.choices:
                 return text # 不知道这是什么情况，先用原始内容吧
             return response.choices[0].message.content
@@ -50,6 +51,7 @@ class LLManager():
         if not text:
             return ''
         try:
+            time.sleep(1)
             system_instruction = "你是一位洞察分析专家，擅长发现信息之间的深层联系，能够提供深刻的见解，请你基于用户提供的信息生成一段行业洞察、趋势分析、商业价值等内容的分析报告，确保内容的深度与广度"
             response = self.gpt_model.chat.completions.create(
                 model=self.GPT_MODEL,
@@ -58,7 +60,7 @@ class LLManager():
                     {"role": "system", "content": system_instruction},
                     {"role": "user", "content": text}
                 ],
-                timeout=20  # 添加超时设置
+                timeout=30  # 添加超时设置
             )
             if not response.choices:
                 return text # 不知道这是什么情况，先用原始内容吧
