@@ -22,3 +22,11 @@ graph TD
     H --> I[生成趋势洞察报告（技术动向 + 商业机会）]
     I --> J[通过 SMTP 发送至邮箱]
 ```
+
+## 📝 贡献指南
+
+欢迎提交 Issue 和 Pull Request 来改进本项目！
+
+## 📄 许可证
+
+本项目采用 Apache-2.0 许可证，详情请见 [LICENSE](./LICENSE-APACHE) 文件。
