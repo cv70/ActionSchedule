@@ -4,7 +4,7 @@ from random import random
 
 from config import Config
 from fetcher import Fetcher
-from output import send_email, build_html_content
+from sender import Sender
 from llmanger import LLManager
 
 def main():
@@ -16,6 +16,7 @@ def main():
 
     llmanager = LLManager(config)
     fetcher = Fetcher(llmanager, config)
+    sender = Sender(config)
 
     # 数据抓取
     all_articles = fetcher.fetch()
@@ -23,10 +24,9 @@ def main():
     # 洞察信息生成
     report = llmanager.analyze_datas(all_articles)
 
-    body = build_html_content(all_articles, report)
+    # 洞察信息发送
+    sender.send(all_articles, report)
 
-    # Send email notification
-    send_email('Tech Insight', body)
 
 if __name__ == "__main__":
     main()

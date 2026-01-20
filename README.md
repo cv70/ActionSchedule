@@ -30,9 +30,12 @@ graph TD
 - `GPT_API_KEY`：OpenAI API 密钥
 - `GPT_API_URL`：OpenAI API URL
 - `GPT_MODEL`：使用的 大语言模型
-- `SMTP_USERNAME`：SMTP 用户名（现在支持 QQ 邮箱的账号）
-- `SMTP_PASSWORD`：SMTP 密码（QQ 邮箱授权码）
-- `EMAIL_RECIPIENT`：接收邮件的邮箱地址
+- `SMTP_SERVER`：SMTP 服务器地址（比如 QQ 邮箱是 `smtp.qq.com`）
+- `SMTP_SENDER`：发件人
+- `SMTP_PASSWORD`：SMTP 密码（比如QQ 邮箱是对应的授权码）
+- `SMTP_RECEIVER`：收件人
+- `WECHAT_WEBHOOK_URL`：企业微信机器人 webhook 地址（可选）
+- `PUSH_ENDPOINT`：推送目标，可选值`email,wechat`，使用 `,` 分隔
 - `FETCH_LIMIT`：每个数据源的抓取数量，默认 `5`
 - `SUBSCRIPTION_SOURCES`：订阅的数据源，可选值`arxiv,hacker_news,huggingface_papers,tech_crunch,github_trending`，使用 `,` 分隔
 3. 启用 GitHub Actions

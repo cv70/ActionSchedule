@@ -24,12 +24,24 @@ jobs:
 
     - name: Run Python script
       env:
-        SMTP_USERNAME: ${{ secrets.SMTP_USERNAME }}
+        # SMTP 配置
+        SMTP_SERVER: ${{ secrets.SMTP_SERVER }}
+        SMTP_SENDER: ${{ secrets.SMTP_USERNAME }}
         SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
-        EMAIL_RECIPIENT: ${{ secrets.EMAIL_RECIPIENT }}
+        SMTP_RECEIVER: ${{ secrets.SMTP_RECEIVER }}
+
+        # 企业微信配置
+        WECHAT_WEBHOOK_URL: ${{ secrets.WECHAT_WEBHOOK_URL }}
+
+        # 推送配置
+        PUSH_ENDPOINT: ${{ secrets.PUSH_ENDPOINT }}
+
+        # 模型配置
         GPT_API_KEY: ${{ secrets.GPT_API_KEY }}
         GPT_API_URL: ${{ secrets.GPT_API_URL }}
         GPT_MODEL: ${{ secrets.GPT_MODEL }}
+
+        # 抓取配置
         FETCH_LIMIT: ${{ secrets.FETCH_LIMIT }}
         SUBSCRIPTION_SOURCES: ${{ secrets.SUBSCRIPTION_SOURCES }}
       run: python main.py
