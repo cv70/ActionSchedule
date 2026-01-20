@@ -6,9 +6,9 @@ import smtplib
 
 
 SMTP_SERVER = "smtp.qq.com"
-SMTP_USERNAME = os.getenv('SMTP_USERNAME') or '2548604505@qq.com'
-SMTP_PASSWORD = os.getenv('SMTP_PASSWORD') or 'irbtxlcpohmmecha'
-EMAIL_RECIPIENT = os.getenv('EMAIL_RECIPIENT') or '2548604505@qq.com'
+SMTP_USERNAME = os.getenv('SMTP_USERNAME')
+SMTP_PASSWORD = os.getenv('SMTP_PASSWORD')
+EMAIL_RECIPIENT = os.getenv('EMAIL_RECIPIENT')
 
 # List of famous quotes
 FAMOUS_QUOTES = [
