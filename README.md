@@ -1,6 +1,6 @@
 # ActionSchedule
 
-一个基于 GitHub Actions 的自动化趋势洞察系统，每日定时抓取 arXiv、HackNews、 HuggingFace Papers、TechCrunch、GithubTrending 的最新文章，通过 AI 摘要与多源聚合，生成面向技术开发者与商业决策者的深度趋势洞察报告，并自动推送至邮箱
+一个基于 GitHub Actions 的自动化趋势洞察系统，每日定时抓取 arXiv、HackNews、 HuggingFace Papers、TechCrunch、GithubTrending 的最新文章，通过 AI 摘要与多源聚合，生成面向技术开发者与商业决策者的深度趋势洞察报告，并自动推送至邮箱、企业微信等指定渠道
 
 > 📬 从此，每天清晨，AI 为您阅读世界，提炼趋势
 
@@ -20,25 +20,50 @@ graph TD
     F --> G
     G --> H[聚合多个摘要（去重、归类、关联）]
     H --> I[生成趋势洞察报告（技术动向 + 商业机会）]
-    I --> J[通过 SMTP 发送至邮箱]
+    I --> J[推送至指定渠道（邮箱、企业微信等）]
 ```
 
 ## 使用说明
-1. Fork 本项目
-2. 配置环境变量，使用Actions secrets
-环境变量说明：
-- `GPT_API_KEY`：OpenAI API 密钥
-- `GPT_API_URL`：OpenAI API URL
-- `GPT_MODEL`：使用的 大语言模型
-- `SMTP_SERVER`：SMTP 服务器地址（比如 QQ 邮箱是 `smtp.qq.com`）
-- `SMTP_SENDER`：发件人
-- `SMTP_PASSWORD`：SMTP 密码（比如QQ 邮箱是对应的授权码）
-- `SMTP_RECEIVER`：收件人
-- `WECHAT_WEBHOOK_URL`：企业微信机器人 webhook 地址（可选）
-- `PUSH_ENDPOINT`：推送目标，可选值`email,wechat`，使用 `,` 分隔
-- `FETCH_LIMIT`：每个数据源的抓取数量，默认 `5`
-- `SUBSCRIPTION_SOURCES`：订阅的数据源，可选值`arxiv,hacker_news,huggingface_papers,tech_crunch,github_trending`，使用 `,` 分隔
-3. 启用 GitHub Actions
+### 1. Fork 本项目
+### 2. 配置环境变量
+使用Actions secrets，添加配置内容，环境变量名 `CONFIG`，环境变量值为yaml 格式，包含以下配置项：
+```yaml
+# OpenAI API 配置
+model:
+  name: gpt-3.5-turbo
+  api_key: sk-xxxx
+  api_url: https://api.openai.com/v1/chat/completions
+  call_interval: 1 # 每次调用后的休眠时间，单位秒，默认值为 1 秒，避免对 API 速率限制
+
+# SMTP 配置
+smtp:
+  server: smtp.qq.com
+  sender: x@qq.com
+  password: xxxxxxxx
+  receiver: y@xxx.com
+
+# 企业微信机器人配置
+wechat:
+  webhook_url: https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=xxxxxx
+
+# 推送配置
+push:
+  endpoint:
+    - email
+    - wechat
+
+# 数据源配置
+source:
+  fetch_limit: 5
+  subscription_sources:
+    - arxiv
+    - hacker_news
+    - huggingface_papers
+    - tech_crunch
+    - github_trending
+```
+
+### 3. 启用 GitHub Actions
 
 ## 📝 贡献指南
 

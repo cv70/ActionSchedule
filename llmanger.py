@@ -1,24 +1,22 @@
 import os
 import time
 
-from config import Config
+from config import AppConfig
 
 from google import genai
 from google.genai import types
 from openai import OpenAI
+from utils import log_cost
 
-
-# GEMINI_API_KEY = os.getenv('GEMINI_API_KEY')
-# GEMINI_MODEL = os.getenv('GEMINI_MODEL')
-# gemini_model = genai.Client(api_key=GEMINI_API_KEY)
 
 class LLManager():
-    def __init__(self, config: Config):
-        self.GPT_MODEL = config.GPT_MODEL
-        self.gpt_model = OpenAI(
-            api_key=config.GPT_API_KEY,
-            base_url=config.GPT_API_URL
+    def __init__(self, config: AppConfig):
+        self.model_name = config.model.name
+        self.model = OpenAI(
+            api_key=config.model.api_key,
+            base_url=config.model.api_url
         )
+        self.call_interval = config.model.call_interval
 
     def translate(self, text: str) -> str:
         """
@@ -38,8 +36,8 @@ class LLManager():
             
         try:
             system_instruction = "你是一位专业、严谨的翻译专家，翻译时严格保留专业术语和原文风格，请将用户输入的文本翻译成中文"
-            response = self.gpt_model.chat.completions.create(
-                model=self.GPT_MODEL,
+            response = self.model.chat.completions.create(
+                model=self.model_name,
                 temperature=0.3,
                 messages=[
                     {"role": "system", "content": system_instruction},
@@ -47,7 +45,7 @@ class LLManager():
                 ],
                 timeout=30
             )
-            time.sleep(1)  # 礼貌延迟
+            time.sleep(self.call_interval)  # 礼貌延迟
             if not response.choices:
                 return text
             return response.choices[0].message.content
@@ -73,11 +71,10 @@ class LLManager():
             return ''
             
         try:
-            time.sleep(1)
             system_instruction = """你是一位洞察分析专家，擅长发现信息之间的深层联系，提供深刻的见解
-请你基于用户提供的信息生成一段行业洞察、趋势分析、商业价值等内容的分析报告，确保内容的深度与广度，**纯文本输出不要含有任何格式，例如Markdown**"""
-            response = self.gpt_model.chat.completions.create(
-                model=self.GPT_MODEL,
+请你基于用户提供的信息生成一段行业洞察、趋势分析、商业价值等内容的分析报告，确保内容的深度与广度，**纯文本输出不要含有任何格式，例如Markdown**，字数控制在1000字以内"""
+            response = self.model.chat.completions.create(
+                model=self.model_name,
                 temperature=0.7,
                 messages=[
                     {"role": "system", "content": system_instruction},
@@ -85,6 +82,7 @@ class LLManager():
                 ],
                 timeout=30
             )
+            time.sleep(self.call_interval)  # 礼貌延迟
             if not response.choices:
                 return text
             return response.choices[0].message.content
@@ -93,6 +91,7 @@ class LLManager():
             return "[分析失败]"
 
 
+    @log_cost
     def analyze_datas(self, datas: list) -> str:
         """
         分析多个数据项并生成综合报告

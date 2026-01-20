@@ -5,13 +5,9 @@ import random
 import requests
 import smtplib
 
-from config import Config
-
-
-SMTP_SERVER = "smtp.qq.com"
-SMTP_USERNAME = os.getenv('SMTP_USERNAME')
-SMTP_PASSWORD = os.getenv('SMTP_PASSWORD')
-EMAIL_RECIPIENT = os.getenv('EMAIL_RECIPIENT')
+import const
+from config import AppConfig
+from utils import log_cost
 
 # List of famous quotes
 FAMOUS_QUOTES = [
@@ -23,44 +19,49 @@ FAMOUS_QUOTES = [
 ]
 
 class Sender:
-    def __init__(self, config: Config):
+    def __init__(self, config: AppConfig):
         self.config = config
 
+    @log_cost
     def send(self, articles, report):
-        html_content = None
-        markdown_content = None
+        html_content = self.build_html_content(articles, report)
+        markdown_content = self.build_markdown_content(articles, report)
+        article_markdowns = [self.build_article_markdown(article) for article in articles]
+        report_markdown = self.build_report_markdown(report)
 
-        if self.config.PUSH_ENDPOINT_EMAIL in self.config.PUSH_ENDPOINT:
-            if not html_content:
-                html_content = self.build_html_content(articles, report)
+        if const.PUSH_ENDPOINT_EMAIL in self.config.push.endpoint:
             self.send_email(html_content)
         
-        if self.config.PUSH_ENDPOINT_WECHAT in self.config.PUSH_ENDPOINT:
-            if not markdown_content:
-                markdown_content = self.build_markdown_content(articles, report)
-            self.send_wechat_message(markdown_content)
+        if const.PUSH_ENDPOINT_WECHAT in self.config.push.endpoint:
+            # 企业微信消息长度被限制在4096，所以这里每个文章单独发送
+            for article_markdown in article_markdowns:
+                self.send_wechat_message(article_markdown)
+            self.send_wechat_message(report_markdown)
 
 
+    @log_cost
     def send_email(self, body):
         try:
             msg = MIMEMultipart()
-            msg['From'] = self.config.SMTP_SENDER
-            msg['To'] = self.config.SMTP_RECEIVER
+            msg['From'] = self.config.smtp.sender
+            msg['To'] = self.config.smtp.receiver
             msg['Subject'] = 'Tech Insight'
             msg.attach(MIMEText(body, 'html'))
 
-            server = smtplib.SMTP(self.config.SMTP_SERVER)
+            server = smtplib.SMTP(self.config.smtp.server)
             server.starttls()
-            server.login(self.config.SMTP_SENDER, self.config.SMTP_PASSWORD)
+            server.login(self.config.smtp.sender, self.config.smtp.password)
             text = msg.as_string()
-            server.sendmail(self.config.SMTP_SENDER, self.config.SMTP_RECEIVER, text)
+            server.sendmail(self.config.smtp.sender, self.config.smtp.receiver, text)
             server.quit()
         except Exception as e:
             print(f"邮件发送失败: {e}")
 
 
+    @log_cost
     def send_wechat_message(self, markdown_content):
-        if not self.config.WECHAT_WEBHOOK_URL:
+        webhook_url = self.config.wechat.webhook_url
+        if not webhook_url:
             return
         
         payload = {
@@ -71,8 +72,11 @@ class Sender:
         }
         
         try:
-            response = requests.post(self.config.WECHAT_WEBHOOK_URL, json=payload, timeout=30)
+            response = requests.post(webhook_url, json=payload, timeout=30)
             response.raise_for_status()
+            # read response content
+            response_content = response.json()
+            print(f"微信消息发送响应: {response_content}")
         except requests.exceptions.RequestException as e:
             print(f"微信消息发送失败: {e}")
 
@@ -208,4 +212,40 @@ class Sender:
             if index < len(articles) - 1:
                 markdown_content += "---\n\n"
         
+        return markdown_content
+
+
+    def build_article_markdown(self, article):
+        markdown_content = f"## 📌 {article.get('source', '未知来源')}\n"
+        
+        # 添加标题（如果存在）
+        if 'title' in article:
+            markdown_content += f"### {article['title']}\n"
+        
+        # 添加中文标题（如果存在）
+        if 'title_cn' in article:
+            markdown_content += f"**中文标题**：{article['title_cn']}\n\n"
+        
+        # 添加链接（如果存在）
+        if 'link' in article:
+            markdown_content += f"[阅读全文 →]({article['link']})\n\n"
+        
+        # 添加元信息（如果存在）
+        if 'meta' in article:
+            markdown_content += f"📊 {article['meta']}\n\n"
+        
+        # 添加摘要（如果存在）
+        if 'summary' in article:
+            summary = article['summary']
+            # 将纯文本换行转换为 Markdown 换行（两个空格 + 换行）
+            summary_lines = summary.split('\n')
+            formatted_summary = '  \n'.join(summary_lines)
+            markdown_content += f"✍️ **核心摘要**:\n\n  {formatted_summary}\n\n"
+        
+        return markdown_content
+
+
+    def build_report_markdown(self, report):
+        markdown_content = f"# 📚 今日趋势洞察速递\n\n"
+        markdown_content += f"{report}\n\n"
         return markdown_content

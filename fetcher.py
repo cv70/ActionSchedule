@@ -5,10 +5,12 @@ import requests
 import arxiv
 from bs4 import BeautifulSoup
 
-from config import Config
+import const
+from config import AppConfig
 from llmanger import LLManager
+from utils import log_cost
 
-article_max_chars = 3000
+article_max_chars = 1024
 
 
 def trim_article_content(content):
@@ -27,39 +29,42 @@ def send_request(req_url):
 
 
 class Fetcher():
-    def __init__(self, llmanager: LLManager, config: Config):
+    def __init__(self, llmanager: LLManager, config: AppConfig):
         self.llmanager = llmanager
-        self.config = config
+        self.subscription_sources = config.source.subscription_sources
+        self.limit = config.source.fetch_limit
 
 
+    @log_cost
     def fetch(self):
         # 多源聚合
         all_articles = []
 
-        if self.config.SOURCE_ARXIV in self.config.SUBSCRIPTION_SOURCES:
+        if const.SOURCE_ARXIV in self.subscription_sources:
             query = "cs.NE OR cs.MA OR cs.LG OR cs.CV OR cs.CL OR cs.AI" # todo: 环境变量自定义
             arxiv_papers = self.fetch_arxiv_papers(query, limit=self.limit)
             all_articles.extend(arxiv_papers)
 
-        if self.config.SOURCE_HACKER_NEWS in self.config.SUBSCRIPTION_SOURCES:
+        if const.SOURCE_HACKER_NEWS in self.subscription_sources:
             hacknews_storys = self.fetch_hacknews_storys(limit=self.limit)
             all_articles.extend(hacknews_storys)
 
-        if self.config.SOURCE_HUGGINGFACE_PAPERS in self.config.SUBSCRIPTION_SOURCES:
+        if const.SOURCE_HUGGINGFACE_PAPERS in self.subscription_sources:
             huggingface_papers = self.fetch_huggingface_papers(limit=self.limit)
             all_articles.extend(huggingface_papers)
 
-        if self.config.SOURCE_TECHCRUNCH in self.config.SUBSCRIPTION_SOURCES:
+        if const.SOURCE_TECHCRUNCH in self.subscription_sources:
             techcrunch_rss = self.fetch_techcrunch_rss(limit=self.limit)
             all_articles.extend(techcrunch_rss)
 
-        if self.config.SOURCE_GITHUB_TRENDING in self.config.SUBSCRIPTION_SOURCES:
+        if const.SOURCE_GITHUB_TRENDING in self.subscription_sources:
             github_trending = self.fetch_github_trending(limit=self.limit)
             all_articles.extend(github_trending)
 
         return all_articles
 
 
+    @log_cost
     def fetch_arxiv_papers(self, query, limit=5):
         client = arxiv.Client()
         search = arxiv.Search(
@@ -76,14 +81,16 @@ class Fetcher():
         # 在arxiv论文处理循环中添加翻译字段
         for result in results:
             papers.append({
+                "source": const.SOURCE_ARXIV,
                 "title": result.title,
-                "pdf_link": result.pdf_url,
-                "translated_title": self.llmanager.translate(result.title),
-                "translated_summary": self.llmanager.translate(result.summary) if hasattr(result, 'summary') else ""
+                "link": result.pdf_url,
+                "title_cn": self.llmanager.translate(result.title),
+                "summary": self.llmanager.translate(result.summary) if hasattr(result, 'summary') else ""
             })
         return papers
 
 
+    @log_cost
     def fetch_hacknews_storys(self, limit=5):
         def get_top_stories():
             return send_request("https://hacker-news.firebaseio.com/v0/topstories.json").json()
@@ -140,6 +147,7 @@ class Fetcher():
         return storys
 
 
+    @log_cost
     def fetch_techcrunch_rss(self, limit=5):
         rss_url = "https://techcrunch.com/feed/"
         feed = feedparser.parse(rss_url)
@@ -160,6 +168,7 @@ class Fetcher():
         return articles
 
 
+    @log_cost
     def fetch_huggingface_papers(self, limit=5):
         def get_paper(paper_url):
             return send_request(paper_url)
@@ -247,6 +256,7 @@ class Fetcher():
             return []
 
 
+    @log_cost
     def fetch_github_trending(self, limit=5):
         url = "https://github.com/trending?since=daily"
         headers = {'User-Agent': 'Mozilla/5.0'}
