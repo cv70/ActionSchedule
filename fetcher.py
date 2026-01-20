@@ -5,6 +5,7 @@ import requests
 import arxiv
 from bs4 import BeautifulSoup
 
+from config import Config
 from llmanger import LLManager
 
 article_max_chars = 3000
@@ -26,8 +27,38 @@ def send_request(req_url):
 
 
 class Fetcher():
-    def __init__(self, llmanager: LLManager):
+    def __init__(self, llmanager: LLManager, config: Config):
         self.llmanager = llmanager
+        self.config = config
+
+
+    def fetch(self):
+        # 多源聚合
+        all_articles = []
+
+        if self.config.SOURCE_ARXIV in self.config.SUBSCRIPTION_SOURCES:
+            query = "cs.NE OR cs.MA OR cs.LG OR cs.CV OR cs.CL OR cs.AI" # todo: 环境变量自定义
+            arxiv_papers = self.fetch_arxiv_papers(query, limit=self.limit)
+            all_articles.extend(arxiv_papers)
+
+        if self.config.SOURCE_HACKER_NEWS in self.config.SUBSCRIPTION_SOURCES:
+            hacknews_storys = self.fetch_hacknews_storys(limit=self.limit)
+            all_articles.extend(hacknews_storys)
+
+        if self.config.SOURCE_HUGGINGFACE_PAPERS in self.config.SUBSCRIPTION_SOURCES:
+            huggingface_papers = self.fetch_huggingface_papers(limit=self.limit)
+            all_articles.extend(huggingface_papers)
+
+        if self.config.SOURCE_TECHCRUNCH in self.config.SUBSCRIPTION_SOURCES:
+            techcrunch_rss = self.fetch_techcrunch_rss(limit=self.limit)
+            all_articles.extend(techcrunch_rss)
+
+        if self.config.SOURCE_GITHUB_TRENDING in self.config.SUBSCRIPTION_SOURCES:
+            github_trending = self.fetch_github_trending(limit=self.limit)
+            all_articles.extend(github_trending)
+
+        return all_articles
+
 
     def fetch_arxiv_papers(self, query, limit=5):
         client = arxiv.Client()
@@ -182,7 +213,7 @@ class Fetcher():
                     # 提取论文摘要/内容
                     paper_resp = get_paper(link)
                     paper_soup = BeautifulSoup(paper_resp.content, 'html.parser')
-                    content_element = paper_soup.find(['p'], class_=lambda x: x and any(keyword in str(x).lower() for keyword in ['text-blue']))
+                    content_element = paper_soup.find(['p'], class_=lambda x: x and any(keyword in str(x).lower() for keyword in ['text-gray']))
                     if not content_element:
                         # 尝试查找第一个段落
                         content_element = element.find('p')
@@ -243,7 +274,7 @@ class Fetcher():
                     link = "https://github.com" + title_element['href']
                     
                     # 提取项目描述
-                    description_element = article.select_one('p.col-9.color-text-secondary.my-1.pr-4')
+                    description_element = article.select_one('p')
                     description = description_element.get_text(strip=True) if description_element else ""
                     
                     # 提取编程语言

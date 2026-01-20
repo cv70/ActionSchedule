@@ -23,6 +23,20 @@ graph TD
     I --> J[通过 SMTP 发送至邮箱]
 ```
 
+## 使用说明
+1. Fork 本项目
+2. 配置环境变量，使用Actions secrets
+环境变量说明：
+- `GPT_API_KEY`：OpenAI API 密钥
+- `GPT_API_URL`：OpenAI API URL
+- `GPT_MODEL`：使用的 大语言模型
+- `SMTP_USERNAME`：SMTP 用户名（现在支持 QQ 邮箱的账号）
+- `SMTP_PASSWORD`：SMTP 密码（QQ 邮箱授权码）
+- `EMAIL_RECIPIENT`：接收邮件的邮箱地址
+- `FETCH_LIMIT`：每个数据源的抓取数量，默认 `5`
+- `SUBSCRIPTION_SOURCES`：订阅的数据源，可选值`arxiv,hacker_news,huggingface_papers,tech_crunch,github_trending`，使用 `,` 分隔
+3. 启用 GitHub Actions
+
 ## 📝 贡献指南
 
 欢迎提交 Issue 和 Pull Request 来改进本项目！

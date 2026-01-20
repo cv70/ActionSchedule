@@ -24,13 +24,14 @@ jobs:
 
     - name: Run Python script
       env:
-        GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         SMTP_USERNAME: ${{ secrets.SMTP_USERNAME }}
         SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
         EMAIL_RECIPIENT: ${{ secrets.EMAIL_RECIPIENT }}
         GPT_API_KEY: ${{ secrets.GPT_API_KEY }}
         GPT_API_URL: ${{ secrets.GPT_API_URL }}
         GPT_MODEL: ${{ secrets.GPT_MODEL }}
+        FETCH_LIMIT: ${{ secrets.FETCH_LIMIT }}
+        SUBSCRIPTION_SOURCES: ${{ secrets.SUBSCRIPTION_SOURCES }}
       run: python main.py
 
     # - name: Commit and push changes
