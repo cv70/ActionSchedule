@@ -40,7 +40,7 @@ smtp:
   server: smtp.qq.com
   sender: x@qq.com
   password: xxxxxxxx
-  receiver: y@xxx.com
+  receiver: y@qq.com
 
 # 企业微信机器人配置
 wechat:

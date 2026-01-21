@@ -2,6 +2,7 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 import os
 import random
+import time
 import requests
 import smtplib
 
@@ -24,24 +25,45 @@ class Sender:
 
     @log_cost
     def send(self, articles, report):
-        html_content = self.build_html_content(articles, report)
-        markdown_content = self.build_markdown_content(articles, report)
-        article_markdowns = [self.build_article_markdown(article) for article in articles]
-        report_markdown = self.build_report_markdown(report)
-
         if const.PUSH_ENDPOINT_EMAIL in self.config.push.endpoint:
+            html_content = self.build_html_content(articles, report)
             self.send_email(html_content)
         
         if const.PUSH_ENDPOINT_WECHAT in self.config.push.endpoint:
-            # 企业微信消息长度被限制在4096，所以这里每个文章单独发送
-            for article_markdown in article_markdowns:
-                self.send_wechat_message(article_markdown)
+            github_trending_articles_markdown = ''
+            tech_crunch_articles_markdown = ''
+            # 企业微信消息长度被限制在4096，所以这里会将消息分开进行发送
+
+            # 对于GitHub Trending和TechCrunch的内容长度较短进行合并处理，以减少消息数量
+            for article in articles:
+                source = article.get('source', '')
+                if source == const.SOURCE_GITHUB_TRENDING:
+                    github_trending_articles_markdown += self.build_article_markdown(article)
+                elif source == const.SOURCE_TECHCRUNCH:
+                    tech_crunch_articles_markdown += self.build_article_markdown(article)
+                else:
+                    article_markdown = self.build_article_markdown(article)
+                    self.send_wechat_message(article_markdown)
+
+            if github_trending_articles_markdown:
+                self.send_wechat_message(github_trending_articles_markdown)
+            if tech_crunch_articles_markdown:
+                self.send_wechat_message(tech_crunch_articles_markdown)
+
+            report_markdown = self.build_report_markdown(report)
             self.send_wechat_message(report_markdown)
 
 
     @log_cost
     def send_email(self, body):
         try:
+            if not body:
+                return
+
+            body = body.strip()
+            if not body:
+                return
+
             msg = MIMEMultipart()
             msg['From'] = self.config.smtp.sender
             msg['To'] = self.config.smtp.receiver
@@ -60,6 +82,13 @@ class Sender:
 
     @log_cost
     def send_wechat_message(self, markdown_content):
+        if not markdown_content:
+            return
+
+        markdown_content = markdown_content.strip()
+        if not markdown_content:
+            return
+
         webhook_url = self.config.wechat.webhook_url
         if not webhook_url:
             return
@@ -76,6 +105,7 @@ class Sender:
             response.raise_for_status()
             # read response content
             response_content = response.json()
+            time.sleep(3) # 避免企业微信消息频率限制
             print(f"微信消息发送响应: {response_content}")
         except requests.exceptions.RequestException as e:
             print(f"微信消息发送失败: {e}")

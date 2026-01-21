@@ -81,7 +81,7 @@ class Fetcher():
         # 在arxiv论文处理循环中添加翻译字段
         for result in results:
             papers.append({
-                "source": const.SOURCE_ARXIV,
+                "source": 'arXiv',
                 "title": result.title,
                 "link": result.pdf_url,
                 "title_cn": self.llmanager.translate(result.title),
