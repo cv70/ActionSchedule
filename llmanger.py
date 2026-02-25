@@ -72,7 +72,7 @@ class LLManager():
             
         try:
             system_instruction = """你是一位洞察分析专家，擅长发现信息之间的深层联系，提供深刻的见解
-请你基于用户提供的信息生成一段行业洞察、趋势分析、商业价值等内容的分析报告，确保内容的深度与广度，**纯文本输出不要含有任何格式，例如Markdown**，字数控制在1000字以内"""
+请你基于用户提供的信息生成一段行业洞察、趋势分析、商业价值等内容的分析报告，确保内容的深度与广度，**纯文本输出不要含有任何格式，例如Markdown**，字数控制在500字以内"""
             response = self.model.chat.completions.create(
                 model=self.model_name,
                 temperature=0.7,
